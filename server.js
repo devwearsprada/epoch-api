@@ -5,6 +5,7 @@ const mongoose = require("mongoose")
 const multer = require("multer")
 const fs = require("fs")
 const path = require("path")
+
 // Models
 const Image = require("./models/image")
 
@@ -12,14 +13,19 @@ const app = express()
 const port = process.env.PORT || 8080
 const mongoURL = process.env.MONGO_URL
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 const options = {
-  user: process.env.NODE_ENV === 'production' ? process.env.MONGO_USER : null,
-  password: process.env.NODE_ENV === 'production' ? process.env.MONGO_PASSWORD : null,
+  auth: {
+    user: isProduction ? process.env.MONGO_USER : null,
+    password: isProduction ? process.env.MONGO_PASSWORD : null,
+  },
+  authSource: isProduction ? process.env.MONGO_AUTH_DB : null,
   keepAlive: true,
   keepAliveInitialDelay: 300000,
   useNewUrlParser: true,
   useCreateIndex: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
 }
 
 mongoose.connect(mongoURL, options, (error) => {
@@ -40,7 +46,6 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
   }
 })
-
 const upload = multer({ storage: storage })
 
 // get handler for retrieving images
@@ -78,6 +83,5 @@ app.post("/images", upload.single("image"), (req, res, next) => {
     }
   })
 })
-
 
 app.listen(port)
