@@ -5,30 +5,34 @@ const mongoose = require("mongoose")
 const multer = require("multer")
 const fs = require("fs")
 const path = require("path")
-
 // Models
 const Image = require("./models/image")
 
 const app = express()
 const port = process.env.PORT || 8080
 const mongoURL = process.env.MONGO_URL
-
 const isProduction = process.env.NODE_ENV === 'production'
 
-const options = {
-  auth: {
-    user: isProduction ? process.env.MONGO_USER : null,
-    password: isProduction ? process.env.MONGO_PASSWORD : null,
-  },
-  authSource: isProduction ? process.env.MONGO_AUTH_DB : null,
-  keepAlive: true,
-  keepAliveInitialDelay: 300000,
-  useNewUrlParser: true,
-  useCreateIndex: true,
-  useUnifiedTopology: true,
+const options = () => {
+  const object = {}
+
+  if (isProduction) {
+    object.auth = {
+      user: process.env.MONGO_USER,
+      password: process.env.MONGO_PASSWORD
+    }
+    object.authSource = process.env.MONGO_AUTH_DB
+  }
+  object.keepAlive = true
+  object.keepAliveInitialDelay = 300000
+  object.useNewUrlParser = true
+  object.useCreateIndex = true
+  object.useUnifiedTopology = true
+
+  return object
 }
 
-mongoose.connect(mongoURL, options, (error) => {
+mongoose.connect(mongoURL, options(), (error) => {
   (!error) ? console.log('Connected to MongoDB') : console.log(error)
 })
 
@@ -48,40 +52,45 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage: storage })
 
-// get handler for retrieving images
-app.get("/images", (req, res) => {
-  try {
-    Image.find((err, data) => {
-      if (err) {
-        res.status(500).send(err)
-      } else {
-        res.status(200).send(data)
-      }
-    })
-  } catch (error) {
-    console.log(error)
-  }
-})
-
-// post handler for uploading images
-app.post("/images", upload.single("image"), (req, res, next) => {
-  const obj = {
-    title: req.body.title,
-    caption: req.body.caption,
-    date: new Date().toISOString(),
-    image: {
-      data: path.join('/uploads/' + req.file.filename),
-      contentType: 'image/png'
-    }
-  }
-
-  Image.create(obj, (err, item) => {
-    if (err) {
-      console.log(err)
-    } else {
-      res.status(200).send(obj)
+const routes = ['dataset', 'generated']
+routes.forEach(route => {
+  // route get request
+  app.get(`/${route}`, (req, res) => {
+    try {
+      Image.find({ type: route }, (err, data) => {
+        if (err) {
+          res.status(500).send(err)
+        } else {
+          res.status(200).send(data)
+        }
+      })
+    } catch (error) {
+      console.log(error)
     }
   })
-})
+  // route post request
+  app.post(`/${route}`, upload.single("image"), (req, res, next) => {
+    const obj = {
+      type: route,
+      title: req.body.title,
+      caption: req.body.caption,
+      account: req.body.account,
+      date: new Date().toISOString(),
+      image: {
+        data: path.join('/uploads/' + req.file.filename),
+        contentType: 'image/png'
+      }
+    }
+
+    // post handler for uploading images
+    Image.create(obj, (err, item) => {
+      if (err) {
+        console.log(err)
+      } else {
+        res.status(200).send(obj)
+      }
+    })
+  })
+});
 
 app.listen(port)
