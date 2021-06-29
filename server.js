@@ -3,7 +3,6 @@ const express = require("express")
 const cors = require("cors")
 const mongoose = require("mongoose")
 const multer = require("multer")
-const fs = require("fs")
 const path = require("path")
 // Models
 const Image = require("./models/image")
@@ -69,16 +68,27 @@ routes.forEach(route => {
     }
   })
   // route post request
-  app.post(`/${route}`, upload.single("image"), (req, res, next) => {
+  app.post(`/${route}`, upload.fields([{
+    name: 'image', maxCount: 1
+  }, {
+    name: 'avatar', maxCount: 1
+  }]), (req, res, next) => {
+    const image = req.files.image[0]
+    const avatar = req.files.avatar[0]
+
     const obj = {
       type: route,
       title: req.body.title,
       caption: req.body.caption,
       account: req.body.account,
       date: new Date().toISOString(),
+      avatar: {
+        data: path.join('/uploads/' + avatar.filename),
+        contentType: avatar.mimetype
+      },
       image: {
-        data: path.join('/uploads/' + req.file.filename),
-        contentType: 'image/png'
+        data: path.join('/uploads/' + image.filename),
+        contentType: image.mimetype
       }
     }
 

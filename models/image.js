@@ -10,6 +10,10 @@ const ImageSchema = mongoose.Schema({
   caption: String,
   date: String,
   account: String,
+  avatar: {
+    data: String,
+    contentType: String
+  },
   image: {
     data: String,
     contentType: String
